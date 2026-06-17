@@ -277,9 +277,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
           component="h1"
           gutterBottom
           sx={{
-            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            background: theme.palette.mode === 'dark'
+              ? 'none'
+              : `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            WebkitBackgroundClip: theme.palette.mode === 'dark' ? 'initial' : 'text',
+            WebkitTextFillColor: theme.palette.mode === 'dark' ? 'initial' : 'transparent',
+            color: theme.palette.mode === 'dark' ? '#ffffff' : 'inherit',
             fontWeight: 800,
             letterSpacing: '-0.02em',
             mb: 2,
