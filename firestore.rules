@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /notes/{noteId} {
+      // 讀取權限：如果是公開筆記，或者當前登入使用者為擁有者
+      allow read: if resource.data.isPublic == true 
+                  || (request.auth != null && request.auth.uid == resource.data.ownerId);
+                  
+      // 新增權限：必須是已登入的使用者，且設定的擁有者 (ownerId) 為自己
+      allow create: if request.auth != null 
+                    && request.resource.data.ownerId == request.auth.uid;
+                    
+      // 更新與刪除權限：必須是已登入的使用者，且為該筆記的擁有者
+      allow update, delete: if request.auth != null 
+                            && request.auth.uid == resource.data.ownerId;
+    }
+  }
+}
