@@ -49,7 +49,7 @@ import {
 import { getCachedFile, clearCachedFile } from '../hooks/useAutoSave';
 import { signInWithGoogle, logout, db, isFirebaseConfigured } from '../firebase';
 import type { User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 
 interface LandingPageProps {
   onOpenFile: (name: string, content: string, type: 'txt' | 'md') => void;
@@ -91,8 +91,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
     setNotesLoading(true);
     const q = query(
       collection(db, 'notes'),
-      where('ownerId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('ownerId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -100,6 +99,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
         id: doc.id,
         ...doc.data()
       }));
+      notesData.sort((a: any, b: any) => {
+        const timeA = a.updatedAt?.toMillis?.() || 0;
+        const timeB = b.updatedAt?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
       setCloudNotes(notesData);
       setNotesLoading(false);
     }, (error) => {
@@ -433,7 +437,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
                     }
                   >
                     <ListItemButton
-                      onClick={() => onOpenCloudFile(note.id, note.name, note.content, note.type, note.isPublic, note.ownerId)}
+                      onClick={() => onOpenCloudFile(
+                        note.id,
+                        note.name || 'untitled.md',
+                        note.content || '',
+                        note.type || 'md',
+                        !!note.isPublic,
+                        note.ownerId || ''
+                      )}
                       sx={{ py: 1.5, px: 2 }}
                     >
                       <ListItemIcon sx={{ minWidth: 40 }}>

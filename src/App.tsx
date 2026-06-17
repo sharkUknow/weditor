@@ -5,7 +5,7 @@ import { getTheme } from './theme';
 import { LandingPage } from './components/LandingPage';
 import { EditorPage } from './components/EditorPage';
 import { useAutoSave, clearCachedFile } from './hooks/useAutoSave';
-import { auth, db } from './firebase';
+import { auth, db, isFirebaseConfigured } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -47,6 +47,11 @@ export const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const shareId = params.get('share');
     if (shareId) {
+      if (!isFirebaseConfigured) {
+        alert("Firebase 尚未設定，無法讀取分享檔案！");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
       const fetchSharedNote = async () => {
         setShareLoading(true);
         try {
@@ -60,8 +65,9 @@ export const App: React.FC = () => {
               setCloudNoteId(shareId);
               setFileName(data.name || 'untitled.md');
               setFileContent(data.content || '');
-              setFileType(data.type || 'md');
-              setIsPublic(data.isPublic || false);
+              const cleanType = (data.type === 'txt' || data.type === 'md') ? data.type : (data.name?.endsWith('.txt') ? 'txt' : 'md');
+              setFileType(cleanType);
+              setIsPublic(!!data.isPublic);
               setReadOnly(!isOwner);
               setIsModified(false);
               setView('editor');
@@ -95,9 +101,10 @@ export const App: React.FC = () => {
 
   const handleOpenFile = (name: string, content: string, type: 'txt' | 'md') => {
     setCloudNoteId(null);
-    setFileName(name);
-    setFileContent(content);
-    setFileType(type);
+    setFileName(name || 'untitled.md');
+    setFileContent(content || '');
+    const cleanType = (type === 'txt' || type === 'md') ? type : (name?.endsWith('.txt') ? 'txt' : 'md');
+    setFileType(cleanType);
     setIsPublic(false);
     setReadOnly(false);
     setIsModified(false);
@@ -106,10 +113,11 @@ export const App: React.FC = () => {
 
   const handleOpenCloudFile = (id: string, name: string, content: string, type: 'txt' | 'md', publicStatus: boolean, ownerId: string) => {
     setCloudNoteId(id);
-    setFileName(name);
-    setFileContent(content);
-    setFileType(type);
-    setIsPublic(publicStatus);
+    setFileName(name || 'untitled.md');
+    setFileContent(content || '');
+    const cleanType = (type === 'txt' || type === 'md') ? type : (name?.endsWith('.txt') ? 'txt' : 'md');
+    setFileType(cleanType);
+    setIsPublic(!!publicStatus);
     setIsModified(false);
 
     const isOwner = user ? user.uid === ownerId : false;
@@ -248,7 +256,13 @@ export const App: React.FC = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <Box sx={{ 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        position: 'relative',
+        overflowY: view === 'landing' ? 'auto' : 'hidden'
+      }}>
 
         {/* Floating Theme Switcher */}
         {view === 'landing' && (
