@@ -40,6 +40,7 @@ import {
   ContentCopy as ContentCopyIcon,
   Check as CheckIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  FormatColorText as FormatColorTextIcon,
 } from '@mui/icons-material';
 import type { User } from 'firebase/auth';
 import katex from 'katex';
@@ -193,6 +194,21 @@ const LATEX_CATEGORIES: LatexCategory[] = [
   }
 ];
 
+const PRESET_COLORS = [
+  { label: '紅色', value: '#e53935' },
+  { label: '橙色', value: '#fb8c00' },
+  { label: '黃色', value: '#fdd835' },
+  { label: '綠色', value: '#43a047' },
+  { label: '藍色', value: '#1e88e5' },
+  { label: '紫色', value: '#8e24aa' },
+  { label: '粉紅', value: '#d81b60' },
+  { label: '青色', value: '#00acc1' },
+  { label: '深灰', value: '#546e7a' },
+  { label: '淺灰', value: '#b0bec5' },
+  { label: '黑色', value: '#000000' },
+  { label: '白色', value: '#ffffff' },
+];
+
 interface EditorToolbarProps {
   fileName: string;
   fileType: 'txt' | 'md';
@@ -236,6 +252,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   // Share dialog states
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Color picker popover states
+  const [colorAnchor, setColorAnchor] = useState<HTMLElement | null>(null);
+  const [customColor, setCustomColor] = useState('#e53935');
 
   // Popover states for LaTeX categories
   const [latexAnchors, setLatexAnchors] = useState<{ [key: string]: HTMLElement | null }>({});
@@ -446,6 +466,141 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 <StrikethroughIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+
+            <Tooltip title="字體顏色">
+              <IconButton size="small" onClick={(e) => setColorAnchor(e.currentTarget)}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <FormatColorTextIcon fontSize="small" />
+                  <Box sx={{ width: '16px', height: '3px', bgcolor: customColor, mt: -0.2, borderRadius: '1px' }} />
+                </Box>
+              </IconButton>
+            </Tooltip>
+
+            <Popover
+              open={Boolean(colorAnchor)}
+              anchorEl={colorAnchor}
+              onClose={() => setColorAnchor(null)}
+              anchorOrigin={{
+                vertical: 'bottom',
+                horizontal: 'left',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'left',
+              }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    p: 1.5,
+                    mt: 0.5,
+                    width: '240px',
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: theme.shadows[3],
+                    bgcolor: theme.palette.background.paper,
+                  }
+                }
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, fontSize: '0.85rem' }}>
+                常用顏色
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 1, mb: 1.5 }}>
+                {PRESET_COLORS.map((color) => (
+                  <Tooltip key={color.value} title={color.label}>
+                    <Box
+                      onClick={() => {
+                        setCustomColor(color.value);
+                        onInsertSyntax(`<span style="color: ${color.value}">`, '</span>', '彩色文字');
+                        setColorAnchor(null);
+                      }}
+                      sx={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        bgcolor: color.value,
+                        cursor: 'pointer',
+                        border: `1px solid ${theme.palette.divider}`,
+                        boxShadow: 'inset 0 0 2px rgba(0,0,0,0.2)',
+                        '&:hover': {
+                          transform: 'scale(1.15)',
+                          transition: 'transform 0.1s ease',
+                        }
+                      }}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, fontSize: '0.85rem' }}>
+                自訂顏色
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                    border: `1px solid ${theme.palette.divider}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: customColor,
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      left: -4,
+                      width: '40px',
+                      height: '40px',
+                      opacity: 0,
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Box>
+                <TextField
+                  size="small"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  slotProps={{
+                    htmlInput: {
+                      style: {
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                      }
+                    }
+                  }}
+                  sx={{ flexGrow: 1 }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => {
+                    onInsertSyntax(`<span style="color: ${customColor}">`, '</span>', '彩色文字');
+                    setColorAnchor(null);
+                  }}
+                  sx={{
+                    py: 0.5,
+                    px: 1.5,
+                    minWidth: 'auto',
+                    textTransform: 'none',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  套用
+                </Button>
+              </Box>
+            </Popover>
 
             <Tooltip title="行內程式碼">
               <IconButton size="small" onClick={() => onInsertSyntax('`', '`', 'code')}>

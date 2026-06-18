@@ -2,6 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 import { Paper, useTheme } from '@mui/material';
 
@@ -12,15 +13,17 @@ interface MarkdownPreviewProps {
   content: string;
 }
 
-export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content }) => {
-  const theme = useTheme();
+export const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewProps>(
+  ({ content }, ref) => {
+    const theme = useTheme();
 
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        height: '100%',
-        overflowY: 'auto',
+    return (
+      <Paper
+        ref={ref}
+        elevation={0}
+        sx={{
+          height: '100%',
+          overflowY: 'auto',
         p: 3,
         bgcolor: theme.palette.background.paper,
         borderRadius: 0,
@@ -132,10 +135,10 @@ export const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({ content }) => 
     >
       <ReactMarkdown
         remarkPlugins={[remarkMath, remarkGfm]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
       >
         {content || '*在此輸入 Markdown 語法，右側將即時渲染預覽...*'}
       </ReactMarkdown>
     </Paper>
   );
-};
+});
