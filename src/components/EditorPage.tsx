@@ -315,7 +315,11 @@ export const EditorPage: React.FC<EditorPageProps> = ({
                     : 'none',
               }}
             >
-              <MarkdownPreview ref={previewRef} content={fileContent} />
+              <MarkdownPreview 
+                ref={previewRef} 
+                content={fileContent} 
+                isCentered={viewMode === 'preview'} 
+              />
             </Grid>
           </Grid>
         )}
