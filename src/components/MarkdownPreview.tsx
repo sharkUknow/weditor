@@ -280,6 +280,14 @@ export const MarkdownPreview = React.forwardRef<HTMLDivElement, MarkdownPreviewP
               h4: ({ children }) => renderHeader(4, children, theme, isCentered),
               h5: ({ children }) => renderHeader(5, children, theme, isCentered),
               h6: ({ children }) => renderHeader(6, children, theme, isCentered),
+              a({ href, children, ...props }) {
+                // ponytail: natively open all links in a new tab to prevent editor state loss
+                return (
+                  <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+                    {children}
+                  </a>
+                );
+              },
               code({ className, children, ...props }) {
                 const match = /language-(\w+)/.exec(className || '');
                 if (!match) {
