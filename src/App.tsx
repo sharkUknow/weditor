@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeProvider, CssBaseline, Box, IconButton, Tooltip, Backdrop, CircularProgress, Typography } from '@mui/material';
+import {
+  ThemeProvider,
+  CssBaseline,
+  Box,
+  IconButton,
+  Tooltip,
+  Backdrop,
+  CircularProgress,
+  Typography,
+  Snackbar,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
+} from '@mui/material';
 import { DarkMode as DarkModeIcon, LightMode as LightModeIcon } from '@mui/icons-material';
 import { getTheme } from './theme';
 import { LandingPage } from './components/LandingPage';
 import { EditorPage } from './components/EditorPage';
 import { useAutoSave, clearCachedFile } from './hooks/useAutoSave';
-import { auth, db, isFirebaseConfigured } from './firebase';
+import { auth, db, resolveRedirect } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -18,6 +34,32 @@ export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
+
+  // Snackbar states
+  const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'error' | 'warning' | 'info' | 'success' }>({
+    open: false,
+    msg: '',
+    severity: 'info',
+  });
+  const showSnack = (msg: string, severity: typeof snack['severity'] = 'info') => {
+    setSnack({ open: true, msg, severity });
+  };
+
+  // Confirm dialog states
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    body: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    body: '',
+    onConfirm: () => {},
+  });
+  const askConfirm = (title: string, body: string, onConfirm: () => void) => {
+    setConfirmDialog({ open: true, title, body, onConfirm });
+  };
 
 
   // File States
@@ -32,8 +74,10 @@ export const App: React.FC = () => {
   const [readOnly, setReadOnly] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
 
-  // Listen to Auth State Changes
+  // Listen to Auth State Changes + resolve any pending redirect sign-in
   useEffect(() => {
+    // resolveRedirect picks up credential after signInWithRedirect page reload
+    resolveRedirect().catch(() => {});
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
@@ -48,11 +92,6 @@ export const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     const shareId = params.get('share');
     if (shareId) {
-      if (!isFirebaseConfigured) {
-        alert("Firebase 尚未設定，無法讀取分享檔案！");
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
       const fetchSharedNote = async () => {
         setShareLoading(true);
         try {
@@ -73,16 +112,16 @@ export const App: React.FC = () => {
               setIsModified(false);
               setView('editor');
             } else {
-              alert('您沒有權限檢閱此檔案，或該檔案已被設為不公開。');
+              showSnack('您沒有權限檢閱此檔案，或該檔案已被設為不公開。', 'warning');
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           } else {
-            alert('此分享連結的檔案不存在或已被刪除。');
+            showSnack('此分享連結的檔案不存在或已被刪除。', 'error');
             window.history.replaceState({}, document.title, window.location.pathname);
           }
         } catch (error) {
           console.error("Error fetching shared note:", error);
-          alert('取得分享檔案時發生錯誤。');
+          showSnack('取得分享檔案時發生錯誤。', 'error');
           window.history.replaceState({}, document.title, window.location.pathname);
         } finally {
           setShareLoading(false);
@@ -162,7 +201,7 @@ export const App: React.FC = () => {
   // Save to Firebase Firestore
   const handleSaveToCloud = async () => {
     if (!user) {
-      alert('請先登入帳號！');
+      showSnack('請先登入帳號！', 'warning');
       return;
     }
     setIsCloudSaving(true);
@@ -190,10 +229,10 @@ export const App: React.FC = () => {
       }
       setIsModified(false);
       clearCachedFile();
-      alert('已成功儲存至雲端！');
+      showSnack('已成功儲存至雲端！', 'success');
     } catch (error) {
       console.error("Error saving to cloud:", error);
-      alert('儲存至雲端時發生錯誤。');
+      showSnack('儲存至雲端時發生錯誤。', 'error');
     } finally {
       setIsCloudSaving(false);
     }
@@ -209,20 +248,29 @@ export const App: React.FC = () => {
         updatedAt: serverTimestamp()
       });
       setIsPublic(newVal);
+      showSnack(newVal ? '已將此筆記設為公開分享！' : '已將此筆記設為私人！', 'success');
     } catch (error) {
       console.error("Error updating sharing settings:", error);
-      alert('變更分享設定時發生錯誤。');
+      showSnack('變更分享設定時發生錯誤。', 'error');
     }
   };
 
   // Go back to homepage
   const handleBackToLanding = () => {
     if (isModified && !readOnly) {
-      const confirmLeave = window.confirm(
-        '您有未儲存的變更！回主頁將會保留當前內容的暫存，但確定要現在返回主頁嗎？'
+      askConfirm(
+        '返回主頁',
+        '您有未儲存的變更！回主頁將會保留當前內容的暫存，但確定要現在返回主頁嗎？',
+        () => {
+          performBackToLanding();
+        }
       );
-      if (!confirmLeave) return;
+    } else {
+      performBackToLanding();
     }
+  };
+
+  const performBackToLanding = () => {
     // Clear state
     setCloudNoteId(null);
     setIsPublic(false);
@@ -301,6 +349,53 @@ export const App: React.FC = () => {
             onTogglePublic={handleTogglePublic}
           />
         )}
+
+        {/* Confirm Dialog */}
+        <Dialog
+          open={confirmDialog.open}
+          onClose={() => setConfirmDialog(d => ({ ...d, open: false }))}
+          slotProps={{ paper: { sx: { borderRadius: 4, p: 1, minWidth: '320px' } } }}
+        >
+          <DialogTitle sx={{ fontWeight: 700 }}>{confirmDialog.title}</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">{confirmDialog.body}</Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <Button
+              onClick={() => setConfirmDialog(d => ({ ...d, open: false }))}
+              color="inherit"
+            >
+              取消
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmDialog(d => ({ ...d, open: false }));
+                confirmDialog.onConfirm();
+              }}
+              variant="contained"
+              color="primary"
+            >
+              確定
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar */}
+        <Snackbar
+          open={snack.open}
+          autoHideDuration={5000}
+          onClose={() => setSnack(s => ({ ...s, open: false }))}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            severity={snack.severity}
+            onClose={() => setSnack(s => ({ ...s, open: false }))}
+            sx={{ borderRadius: 3 }}
+            variant="filled"
+          >
+            {snack.msg}
+          </Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

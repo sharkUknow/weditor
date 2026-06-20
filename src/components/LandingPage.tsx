@@ -14,6 +14,7 @@ import {
   Grid,
   Radio,
   RadioGroup,
+  Snackbar,
   TextField,
   Typography,
   useTheme,
@@ -47,7 +48,7 @@ import {
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
 import { getCachedFile, clearCachedFile } from '../hooks/useAutoSave';
-import { signInWithGoogle, logout, db, isFirebaseConfigured } from '../firebase';
+import { signInWithGoogle, logout, db } from '../firebase';
 import type { User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 
@@ -72,6 +73,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   // User menu anchor
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const openUserMenu = Boolean(anchorEl);
+
+  // Snackbar for non-blocking notifications
+  const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'error' | 'warning' | 'info' | 'success' }>(
+    { open: false, msg: '', severity: 'info' }
+  );
+  const showSnack = (msg: string, severity: typeof snack['severity'] = 'info') =>
+    setSnack({ open: true, msg, severity });
+
+  // Generic confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean; title: string; body: string; onConfirm: () => void;
+  }>({ open: false, title: '', body: '', onConfirm: () => {} });
+  const askConfirm = (title: string, body: string, onConfirm: () => void) =>
+    setConfirmDialog({ open: true, title, body, onConfirm });
 
   useEffect(() => {
     // Check if there is cached data
@@ -130,15 +145,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
     const isMd = file.name.endsWith('.md');
     const isTxt = file.name.endsWith('.txt');
-
     if (!isMd && !isTxt) {
-      alert('僅支援 .txt 與 .md 檔案！');
+      showSnack('僅支援 .txt 與 .md 檔案！', 'warning');
       return;
     }
 
+    const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       onOpenFile(file.name, content, isMd ? 'md' : 'txt');
@@ -153,10 +167,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   };
 
   const handleDiscardCache = () => {
-    if (window.confirm('確定要捨棄未保存的暫存檔嗎？此動作無法復原。')) {
+    askConfirm('捨棄暫存', '確定要捨棄未保存的暫存檔嗎？此動作無法復原。', () => {
       clearCachedFile();
       setCachedFile(null);
-    }
+    });
   };
 
   const handleUserMenuClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -168,54 +182,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   };
 
   const handleLogin = () => {
-    const loginPromise = signInWithGoogle();
-    if (!loginPromise) return;
-
     setAuthLoading(true);
-    loginPromise
+    // firebase.ts auto-falls back to signInWithRedirect when popup is blocked
+    signInWithGoogle()
       .catch((error: any) => {
-        if (error.code === 'auth/popup-blocked') {
-          alert(
-            '登入彈出視窗被瀏覽器封鎖。\n\n' +
-            '請依以下步驟允許彈出視窗：\n' +
-            '• Chrome / Edge：點擊網址列右側的封鎖圖示 → 選擇「允許」\n' +
-            '• Safari：偏好設定 → 網站 → 彈出視窗 → 允許\n\n' +
-            '允許後請再點一次「Google 登入」按鈕。'
-          );
-        } else if (error.code !== 'auth/popup-closed-by-user') {
-          console.error("Google login failed:", error);
-          alert('登入失敗，請稍後再試。' + (error.message ? ` (${error.message})` : ''));
+        if (error.code !== 'auth/popup-closed-by-user') {
+          console.error('Google login failed:', error);
+          showSnack('登入失敗，請稍後再試。', 'error');
         }
       })
-      .finally(() => {
-        setAuthLoading(false);
-      });
+      .finally(() => setAuthLoading(false));
   };
 
-  const handleLogout = async () => {
-    if (window.confirm('確定要登出嗎？')) {
+  const handleLogout = () => {
+    handleUserMenuClose();
+    askConfirm('登出確認', '確定要登出帳號嗎？', async () => {
       setAuthLoading(true);
       try {
         await logout();
-        handleUserMenuClose();
       } catch (error) {
-        console.error("Logout failed:", error);
+        console.error('Logout failed:', error);
+        showSnack('登出失敗，請稍後再試。', 'error');
       } finally {
         setAuthLoading(false);
       }
-    }
+    });
   };
 
-  const handleDeleteCloudNote = async (e: React.MouseEvent, noteId: string, noteName: string) => {
-    e.stopPropagation(); // Prevent opening the note
-    if (window.confirm(`確定要刪除雲端筆記「${noteName}」嗎？此動作無法復原。`)) {
-      try {
-        await deleteDoc(doc(db, 'notes', noteId));
-      } catch (error) {
-        console.error("Error deleting note:", error);
-        alert('刪除檔案時發生錯誤。');
+  const handleDeleteCloudNote = (e: React.MouseEvent, noteId: string, noteName: string) => {
+    e.stopPropagation();
+    askConfirm(
+      '刪除雲端筆記',
+      `確定要刪除「${noteName}」嗎？此動作無法復原。`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'notes', noteId));
+        } catch (error) {
+          console.error('Error deleting note:', error);
+          showSnack('刪除失敗，請稍後再試。', 'error');
+        }
       }
-    }
+    );
   };
 
   const formatTimestamp = (timestamp: any) => {
@@ -314,24 +321,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
         </Typography>
       </Box>
 
-      {/* Firebase configuration warning */}
-      {!isFirebaseConfigured && (
-        <Alert
-          severity="warning"
-          sx={{
-            mb: 4,
-            borderRadius: 3,
-            border: `1px solid ${theme.palette.warning.light}`,
-          }}
-        >
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            Firebase 未設定
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            本專案目前未偵測到完整的 Firebase 組態變數。雲端筆記儲存、Google 登入與公開分享功能將暫時無法使用。請建立 <code>.env</code> 檔案並填入 <code>VITE_FIREBASE_*</code> 等環境變數。
-          </Typography>
-        </Alert>
-      )}
 
       {/* Auto-save Recovery Alert */}
       {cachedFile && (
@@ -626,6 +615,53 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Confirm Dialog */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog(d => ({ ...d, open: false }))}
+        slotProps={{ paper: { sx: { borderRadius: 4, p: 1, minWidth: '320px' } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>{confirmDialog.title}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">{confirmDialog.body}</Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button
+            onClick={() => setConfirmDialog(d => ({ ...d, open: false }))}
+            color="inherit"
+          >
+            取消
+          </Button>
+          <Button
+            onClick={() => {
+              setConfirmDialog(d => ({ ...d, open: false }));
+              confirmDialog.onConfirm();
+            }}
+            variant="contained"
+            color="error"
+          >
+            確定
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={5000}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={snack.severity}
+          onClose={() => setSnack(s => ({ ...s, open: false }))}
+          sx={{ borderRadius: 3 }}
+          variant="filled"
+        >
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
