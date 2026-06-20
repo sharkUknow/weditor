@@ -167,18 +167,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
     setAnchorEl(null);
   };
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
+    // 必須在改變 React 狀態之前「同步」呼叫登入，否則部分瀏覽器會阻擋 popup
+    const loginPromise = signInWithGoogle();
+    
     setAuthLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
-        console.error("Google login failed:", error);
-        alert('登入失敗，請稍後再試。');
-      }
-    } finally {
-      setAuthLoading(false);
-    }
+    loginPromise
+      .catch((error: any) => {
+        if (error.code !== 'auth/popup-closed-by-user') {
+          console.error("Google login failed:", error);
+          alert('登入失敗，請稍後再試。' + (error.message ? ` (${error.message})` : ''));
+        }
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
   };
 
   const handleLogout = async () => {
