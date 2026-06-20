@@ -6,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { EditorPage } from './components/EditorPage';
 import { useAutoSave, clearCachedFile } from './hooks/useAutoSave';
 import { auth, db, isFirebaseConfigured } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -34,11 +34,9 @@ export const App: React.FC = () => {
   // Listen to Auth State Changes
   useEffect(() => {
     // Handle potential redirect login errors
-    import('firebase/auth').then(({ getRedirectResult }) => {
-      getRedirectResult(auth).catch((error) => {
-        console.error("Redirect login error:", error);
-        alert(`轉址登入失敗：您的瀏覽器可能阻擋了第三方 Cookie 或跨網站追蹤（例如無痕模式、Safari 或 Brave）。請嘗試關閉阻擋器後再試一次。\n\n錯誤細節: ${error.message}`);
-      });
+    getRedirectResult(auth).catch((error) => {
+      console.error("Redirect login error:", error);
+      alert(`轉址登入失敗：您的瀏覽器可能阻擋了第三方 Cookie 或跨網站追蹤（例如無痕模式、Safari 或 Brave）。請嘗試關閉阻擋器後再試一次。\n\n錯誤細節: ${error.message}`);
     });
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
