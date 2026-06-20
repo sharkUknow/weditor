@@ -6,22 +6,15 @@ interface GoogleLoginButtonProps {
 }
 
 export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onShowSnack }) => {
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async () => {
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-    } catch (err: any) {
+  const handleLogin = () => {
+    signInWithGoogle().catch((err: any) => {
       if (err.code !== 'auth/popup-closed-by-user') {
         console.error('Google login failed:', err);
         if (onShowSnack) {
           onShowSnack('登入失敗，請稍後再試。', 'error');
         }
       }
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const GoogleIcon = () => (
@@ -36,17 +29,10 @@ export const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ onShowSnac
   return (
     <button
       onClick={handleLogin}
-      disabled={loading}
       className="flex items-center justify-center py-2 px-4 bg-white/90 hover:bg-white dark:bg-slate-900/80 hover:text-indigo-700 dark:hover:text-indigo-400 border border-slate-200/50 dark:border-slate-800/50 rounded-2xl shadow-sm hover:shadow-md hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer pointer-events-auto text-sm font-bold text-slate-700 dark:text-slate-200"
     >
-      {loading ? (
-        <span className="w-4 h-4 border-2 border-indigo-600 dark:border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
-      ) : (
-        <>
-          <GoogleIcon />
-          <span>Google 登入</span>
-        </>
-      )}
+      <GoogleIcon />
+      <span>Google 登入</span>
     </button>
   );
 };
