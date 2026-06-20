@@ -168,13 +168,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   };
 
   const handleLogin = () => {
-    // 必須在改變 React 狀態之前「同步」呼叫登入，否則部分瀏覽器會阻擋 popup
     const loginPromise = signInWithGoogle();
-    
+    if (!loginPromise) return;
+
     setAuthLoading(true);
     loginPromise
       .catch((error: any) => {
-        if (error.code !== 'auth/popup-closed-by-user') {
+        if (error.code === 'auth/popup-blocked') {
+          alert(
+            '登入彈出視窗被瀏覽器封鎖。\n\n' +
+            '請依以下步驟允許彈出視窗：\n' +
+            '• Chrome / Edge：點擊網址列右側的封鎖圖示 → 選擇「允許」\n' +
+            '• Safari：偏好設定 → 網站 → 彈出視窗 → 允許\n\n' +
+            '允許後請再點一次「Google 登入」按鈕。'
+          );
+        } else if (error.code !== 'auth/popup-closed-by-user') {
           console.error("Google login failed:", error);
           alert('登入失敗，請稍後再試。' + (error.message ? ` (${error.message})` : ''));
         }

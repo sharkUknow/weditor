@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider, CssBaseline, Box, IconButton, Tooltip, Backdrop, CircularProgress, Typography } from '@mui/material';
 import { DarkMode as DarkModeIcon, LightMode as LightModeIcon } from '@mui/icons-material';
 import { getTheme } from './theme';
@@ -6,7 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { EditorPage } from './components/EditorPage';
 import { useAutoSave, clearCachedFile } from './hooks/useAutoSave';
 import { auth, db, isFirebaseConfigured } from './firebase';
-import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -18,7 +18,7 @@ export const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [shareLoading, setShareLoading] = useState(false);
-  const cleanupRef = useRef<(() => void) | null>(null);
+
 
   // File States
   const [fileName, setFileName] = useState('untitled.md');
@@ -34,26 +34,11 @@ export const App: React.FC = () => {
 
   // Listen to Auth State Changes
   useEffect(() => {
-    // Must await getRedirectResult BEFORE subscribing to onAuthStateChanged.
-    // In redirect-login flow (popup blocked on prod), Firebase needs this call
-    // to exchange the redirect token and update the auth state; without it the
-    // sign-in silently fails even though Google returned successfully.
-    getRedirectResult(auth).catch((error) => {
-      console.error("Redirect login error:", error);
-      alert(`轉址登入失敗：您的瀏覽器可能阻擋了第三方 Cookie 或跨網站追蹤（例如無痕模式、Safari 或 Brave）。請嘗試關閉阻擋器後再試一次。\n\n錯誤細節: ${error.message}`);
-    }).finally(() => {
-      // Only start the auth listener after redirect result is settled,
-      // so onAuthStateChanged fires with the correct (logged-in) user.
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
-        setAuthLoading(false);
-      });
-      // ponytail: unsubscribe is only reachable via closure; effect cleanup
-      // must be registered after the promise resolves, so we store it here.
-      cleanupRef.current = unsubscribe;
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
     });
-
-    return () => cleanupRef.current?.();
+    return unsubscribe;
   }, []);
 
   // Parse share URL parameter once auth is resolved

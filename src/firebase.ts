@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -52,20 +52,16 @@ function setupDummyServices() {
 
 export { auth, db, googleProvider };
 
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = () => {
   if (!isFirebaseConfigured) {
     alert("Firebase 尚未設定！請建立 .env 檔案並設定 VITE_FIREBASE_* 金鑰。");
-    return;
+    return Promise.resolve();
   }
-  try {
-    return await signInWithPopup(auth, googleProvider);
-  } catch (error: any) {
-    if (error.code === 'auth/popup-blocked') {
-      console.warn("Popup blocked, falling back to redirect login...");
-      return signInWithRedirect(auth, googleProvider);
-    }
-    throw error;
-  }
+  // ponytail: no redirect fallback — signInWithRedirect silently fails in prod
+  // because modern browsers block the cross-origin iframe Firebase uses to
+  // retrieve the token from firebaseapp.com (third-party storage blocking).
+  // When popup is blocked, let auth/popup-blocked propagate to the UI.
+  return signInWithPopup(auth, googleProvider);
 };
 
 export const logout = async () => {
