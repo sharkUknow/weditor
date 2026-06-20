@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -57,7 +57,15 @@ export const signInWithGoogle = async () => {
     alert("Firebase 尚未設定！請建立 .env 檔案並設定 VITE_FIREBASE_* 金鑰。");
     return;
   }
-  return signInWithPopup(auth, googleProvider);
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error: any) {
+    if (error.code === 'auth/popup-blocked') {
+      console.warn("Popup blocked, falling back to redirect login...");
+      return signInWithRedirect(auth, googleProvider);
+    }
+    throw error;
+  }
 };
 
 export const logout = async () => {
