@@ -40,7 +40,6 @@ import {
   Code as CodeIcon,
   Functions as FunctionsIcon,
   Save as SaveIcon,
-  Google as GoogleIcon,
   Logout as LogoutIcon,
   Delete as DeleteIcon,
   CloudQueue as CloudIcon,
@@ -48,9 +47,10 @@ import {
   LockOutlined as LockIcon,
 } from '@mui/icons-material';
 import { getCachedFile, clearCachedFile } from '../hooks/useAutoSave';
-import { signInWithGoogle, logout, db } from '../firebase';
+import { logout, db } from '../firebase';
 import type { User } from 'firebase/auth';
 import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 interface LandingPageProps {
   onOpenFile: (name: string, content: string, type: 'txt' | 'md') => void;
@@ -181,16 +181,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
     setAnchorEl(null);
   };
 
-  const handleLogin = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
-        console.error('Google login failed:', error);
-        showSnack('登入失敗，請稍後再試。', 'error');
-      }
-    }
-  };
 
   const handleLogout = () => {
     handleUserMenuClose();
@@ -272,25 +262,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
             </Menu>
           </Box>
         ) : (
-          <Button
-            variant="outlined"
-            onClick={handleLogin}
-            disabled={authLoading}
-            startIcon={authLoading ? <CircularProgress size={20} color="inherit" /> : <GoogleIcon />}
-            sx={{
-              borderRadius: 3,
-              px: 2.5,
-              py: 0.8,
-              borderWidth: '1.5px',
-              fontWeight: 600,
-              textTransform: 'none',
-              '&:hover': {
-                borderWidth: '1.5px',
-              }
-            }}
-          >
-            {authLoading ? "登入中..." : "Google 登入"}
-          </Button>
+          <GoogleLoginButton onShowSnack={showSnack} />
         )}
       </Box>
 
