@@ -63,6 +63,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<'txt' | 'md'>('md');
   const [cachedFile, setCachedFile] = useState<ReturnType<typeof getCachedFile>>(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Cloud Notes states
   const [cloudNotes, setCloudNotes] = useState<any[]>([]);
@@ -167,6 +168,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   };
 
   const handleLogin = async () => {
+    setAuthLoading(true);
     try {
       await signInWithGoogle();
     } catch (error: any) {
@@ -174,16 +176,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
         console.error("Google login failed:", error);
         alert('登入失敗，請稍後再試。');
       }
+    } finally {
+      setAuthLoading(false);
     }
   };
 
   const handleLogout = async () => {
     if (window.confirm('確定要登出嗎？')) {
+      setAuthLoading(true);
       try {
         await logout();
         handleUserMenuClose();
       } catch (error) {
         console.error("Logout failed:", error);
+      } finally {
+        setAuthLoading(false);
       }
     }
   };
@@ -240,11 +247,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
                   {user.email}
                 </Typography>
               </Box>
-              <MenuItem onClick={handleLogout} sx={{ py: 1.2 }}>
+              <MenuItem onClick={handleLogout} sx={{ py: 1.2 }} disabled={authLoading}>
                 <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
+                  {authLoading ? <CircularProgress size={20} /> : <LogoutIcon fontSize="small" />}
                 </ListItemIcon>
-                <ListItemText primary="登出帳號" />
+                <ListItemText primary={authLoading ? "登出中..." : "登出帳號"} />
               </MenuItem>
             </Menu>
           </Box>
@@ -252,7 +259,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
           <Button
             variant="outlined"
             onClick={handleLogin}
-            startIcon={<GoogleIcon />}
+            disabled={authLoading}
+            startIcon={authLoading ? <CircularProgress size={20} color="inherit" /> : <GoogleIcon />}
             sx={{
               borderRadius: 3,
               px: 2.5,
@@ -265,7 +273,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
               }
             }}
           >
-            Google 登入
+            {authLoading ? "登入中..." : "Google 登入"}
           </Button>
         )}
       </Box>
