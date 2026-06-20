@@ -182,7 +182,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
   };
 
   const handleLogin = async () => {
-    setAuthLoading(true);
     try {
       await signInWithGoogle();
     } catch (error: any) {
@@ -190,8 +189,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
         console.error('Google login failed:', error);
         showSnack('登入失敗，請稍後再試。', 'error');
       }
-    } finally {
-      setAuthLoading(false);
     }
   };
 
