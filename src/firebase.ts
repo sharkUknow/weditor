@@ -1,12 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
-} from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const app = initializeApp({
@@ -24,21 +17,6 @@ export const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: 'select_account' });
 
-/** Try popup first; if blocked, fall back to redirect. */
-export const signInWithGoogle = async () => {
-  try {
-    return await signInWithPopup(auth, provider);
-  } catch (err: any) {
-    if (err.code === 'auth/popup-blocked') {
-      // ponytail: redirect fallback for browsers that block popups on prod domains.
-      // getRedirectResult() in App.tsx will resolve the credential on next load.
-      return signInWithRedirect(auth, provider);
-    }
-    throw err;
-  }
-};
-
-/** Call once on app mount to resolve any pending redirect sign-in. */
-export const resolveRedirect = () => getRedirectResult(auth);
+export const signInWithGoogle = () => signInWithPopup(auth, provider);
 
 export const logout = () => signOut(auth);

@@ -181,17 +181,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenFile, user, onOp
     setAnchorEl(null);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setAuthLoading(true);
-    // firebase.ts auto-falls back to signInWithRedirect when popup is blocked
-    signInWithGoogle()
-      .catch((error: any) => {
-        if (error.code !== 'auth/popup-closed-by-user') {
-          console.error('Google login failed:', error);
-          showSnack('登入失敗，請稍後再試。', 'error');
-        }
-      })
-      .finally(() => setAuthLoading(false));
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user') {
+        console.error('Google login failed:', error);
+        showSnack('登入失敗，請稍後再試。', 'error');
+      }
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleLogout = () => {

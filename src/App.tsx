@@ -21,8 +21,8 @@ import { getTheme } from './theme';
 import { LandingPage } from './components/LandingPage';
 import { EditorPage } from './components/EditorPage';
 import { useAutoSave, clearCachedFile } from './hooks/useAutoSave';
-import { auth, db, resolveRedirect } from './firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from './firebase';
+import { onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import type { User } from 'firebase/auth';
 import { doc, getDoc, collection, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -74,10 +74,14 @@ export const App: React.FC = () => {
   const [readOnly, setReadOnly] = useState(false);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
 
-  // Listen to Auth State Changes + resolve any pending redirect sign-in
+  // Listen to Auth State Changes
   useEffect(() => {
-    // resolveRedirect picks up credential after signInWithRedirect page reload
-    resolveRedirect().catch(() => {});
+    // Process redirect result in case of mobile browser fallback or 3rd-party cookie blocking
+    getRedirectResult(auth).catch((error) => {
+      console.error('Redirect result error:', error);
+      showSnack('登入失敗，請稍後再試。', 'error');
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setAuthLoading(false);
